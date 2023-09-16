@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Tinder auto messenger",
-    "version": "1.0",
+    "version": "1.1",
     "description": "Automatically sends messages on Tinder",
     "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs", "webNavigation"],
     "background": {
