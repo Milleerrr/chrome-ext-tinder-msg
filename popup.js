@@ -22,21 +22,12 @@ document.getElementById('sendMessage').addEventListener('click', function() {
             }
         });
 
-        // Get the message from the input field
-        const message = document.getElementById("message").value;
-        
-        if (!message) {
-            console.warn('No message provided.');
-            alert('Please enter a message before sending.');
-            return;
-        }
-
         // Send both the action and the message in the same message
         try {
-            port.postMessage({action: "sendMessage", message: message});
+            port.postMessage({action: "sendMessage"});
         } catch (error) {
-            console.error('Failed to send message:', error);
-            alert('Error: Failed to send message.');
+            console.error('Failed to start:', error);
+            alert('Error: Failed to start.');
         }
     });
 });

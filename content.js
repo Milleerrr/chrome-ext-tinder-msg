@@ -1,6 +1,7 @@
+const messageLinks = [];
+
 function getMatches() {
     const matchProfiles = document.querySelectorAll('.matchListItem');
-    const messageLinks = [];
     for (let profile of matchProfiles) {
         const href = profile.href;
         if (href === 'https://tinder.com/app/my-likes' || href === 'https://tinder.com/app/likes-you') {
@@ -10,6 +11,7 @@ function getMatches() {
         const name = matchName.textContent;
         messageLinks.push({ name, href });
     }
+    chrome.storage.local.set({ messageLinks: messageLinks });
     chrome.runtime.sendMessage({ action: "setLinks", links: messageLinks.map(l => l.href) });
     proceedWithNextLink();
 }
@@ -23,30 +25,33 @@ function proceedWithNextLink() {
 }
 
 function sendMessage() {
-    setTimeout(() => {
-        const textArea = document.querySelector('#c1558494470');
-        const sendButton = document.querySelector('button[draggable="false"][type="submit"]');
-
-        // Assuming "message" variable is globally available; adjust as needed
-        if (textArea) {
-            textArea.innerHTML = 'Hi';
-            textArea.dispatchEvent(new Event('input', { 'bubbles': true }));
-        } else {
-            console.error('Text area not found');
-        }
-
-
+    chrome.storage.local.get(['messageLinks'], function(result) {
+        const links = result.messageLinks;
+        const currentLink = links.find(link => link.href === window.location.href);
+        
         setTimeout(() => {
-            // Simulate sending the message
-            sendButton.click();
-            console.log('Message sent');
+            const textArea = document.querySelector('#c1558494470');
+            const sendButton = document.querySelector('button[draggable="false"][type="submit"]');
 
-            // Inform background script that we are done with this link
-            chrome.runtime.sendMessage({ action: "finishedLink" });
+            if (currentLink && textArea) {
+                textArea.innerHTML = currentLink.name + "!";
+                textArea.dispatchEvent(new Event('input', { 'bubbles': true }));
+            } else {
+                console.error('Text area not found or match name not retrieved.');
+            }
 
-        }, 10000);
-    }, 5000);
+            setTimeout(() => {
+                sendButton.click();
+                console.log('Message sent to', currentLink.name);
+
+                // Inform background script that we are done with this link
+                chrome.runtime.sendMessage({ action: "finishedLink" });
+
+            }, 2000);
+        }, 5000);
+    });
 }
+
 
 // When page loads, check if it's a message page or list page
 if (window.location.href.includes("messages")) {
@@ -59,10 +64,6 @@ chrome.runtime.onConnect.addListener(function (port) {
     console.assert(port.name === "tinderBot");
     port.onMessage.addListener(function (msg) {
         if (msg.action === "sendMessage") {
-            // Assuming "message" is set here globally; adjust as needed
-            message = msg.message;
-            console.log("Sending message");
-
             if (window.location.href.includes("messages")) {
                 sendMessage();
             } else {
@@ -71,8 +72,6 @@ chrome.runtime.onConnect.addListener(function (port) {
         }
     });
 });
-
-
 
 // function generateTinderMessage() {
 //     const prompts = [
