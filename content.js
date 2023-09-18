@@ -30,7 +30,7 @@ function sendMessage() {
         const currentLink = links.find(link => link.href === window.location.href);
         
         setTimeout(() => {
-            const textArea = document.querySelector('textarea[maxlength="5000"]');
+            const textArea = document.querySelector('textarea[placeholder="Type a message ..."]');
             const sendButton = document.querySelector('button[draggable="false"][type="submit"]');
 
             if (currentLink && textArea) {
