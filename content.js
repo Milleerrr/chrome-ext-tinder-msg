@@ -44,8 +44,11 @@ function sendMessage() {
                 sendButton.click();
                 console.log('Message sent to', currentLink.name);
 
-                // Inform background script that we are done with this link
-                chrome.runtime.sendMessage({ action: "finishedLink" });
+                // Wait for 1 second (1000 milliseconds) before moving on to the next line of code
+                setTimeout(() => {
+                    // Inform background script that we are done with this link
+                    chrome.runtime.sendMessage({ action: "finishedLink" });
+                }, 1000);
 
             }, 2000);
         }, 5000);
