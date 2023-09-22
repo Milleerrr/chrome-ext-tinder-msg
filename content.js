@@ -1,18 +1,37 @@
 const messageLinks = [];
 
+function getMatchProfiles() {
+    return document.querySelectorAll('.matchListItem');
+}
+
+function isExcludedLink(href) {
+    return href === 'https://tinder.com/app/my-likes' || href === 'https://tinder.com/app/likes-you';
+}
+
+function extractNameAndHref(profile) {
+    const href = profile.href;
+    const matchName = profile.querySelector('.Ell');
+    const name = matchName.textContent;
+    return { name, href };
+}
+
+function storeLinks() {
+    chrome.storage.local.set({ messageLinks: messageLinks });
+}
+
+function sendLinksToBackground() {
+    chrome.runtime.sendMessage({ action: "setLinks", links: messageLinks.map(l => l.href) });
+}
+
 function getMatches() {
-    const matchProfiles = document.querySelectorAll('.matchListItem');
+    const matchProfiles = getMatchProfiles();
     for (let profile of matchProfiles) {
-        const href = profile.href;
-        if (href === 'https://tinder.com/app/my-likes' || href === 'https://tinder.com/app/likes-you') {
-            continue;
-        }
-        const matchName = profile.querySelector('.Ell');
-        const name = matchName.textContent;
+        if (isExcludedLink(profile.href)) continue;
+        const { name, href } = extractNameAndHref(profile);
         messageLinks.push({ name, href });
     }
-    chrome.storage.local.set({ messageLinks: messageLinks });
-    chrome.runtime.sendMessage({ action: "setLinks", links: messageLinks.map(l => l.href) });
+    storeLinks();
+    sendLinksToBackground();
     proceedWithNextLink();
 }
 
@@ -24,54 +43,58 @@ function proceedWithNextLink() {
     });
 }
 
+function getCurrentLink(links) {
+    return links.find(link => link.href === window.location.href);
+}
+
+function sendTextMessage(currentLink) {
+    const textArea = document.querySelector('textarea[placeholder="Type a message ..."]');
+    const sendButton = document.querySelector('button[draggable="false"][type="submit"]');
+
+    if (currentLink && textArea) {
+        textArea.innerHTML = currentLink.name + "!";
+        textArea.dispatchEvent(new Event('input', { 'bubbles': true }));
+    } else {
+        console.error('Text area not found or match name not retrieved.');
+    }
+
+    setTimeout(() => {
+        sendButton.click();
+        console.log('Message sent to', currentLink.name);
+        informBackgroundScript();
+    }, 2000);
+}
+
+function informBackgroundScript() {
+    setTimeout(() => {
+        chrome.runtime.sendMessage({ action: "finishedLink" });
+    }, 1000);
+}
+
 function sendMessage() {
     chrome.storage.local.get(['messageLinks'], function(result) {
-        const links = result.messageLinks;
-        const currentLink = links.find(link => link.href === window.location.href);
-        
+        const currentLink = getCurrentLink(result.messageLinks);
         setTimeout(() => {
-            const textArea = document.querySelector('textarea[placeholder="Type a message ..."]');
-            const sendButton = document.querySelector('button[draggable="false"][type="submit"]');
-
-            if (currentLink && textArea) {
-                textArea.innerHTML = currentLink.name + "!";
-                textArea.dispatchEvent(new Event('input', { 'bubbles': true }));
-            } else {
-                console.error('Text area not found or match name not retrieved.');
-            }
-
-            setTimeout(() => {
-                sendButton.click();
-                console.log('Message sent to', currentLink.name);
-
-                // Wait for 1 second (1000 milliseconds) before moving on to the next line of code
-                setTimeout(() => {
-                    // Inform background script that we are done with this link
-                    chrome.runtime.sendMessage({ action: "finishedLink" });
-                }, 1000);
-
-            }, 2000);
+            sendTextMessage(currentLink);
         }, 5000);
     });
 }
 
-
-// When page loads, check if it's a message page or list page
-if (window.location.href.includes("messages")) {
-    sendMessage();
-} else {
-    getMatches();
+function handlePageLoad() {
+    if (window.location.href.includes("messages")) {
+        sendMessage();
+    } else {
+        getMatches();
+    }
 }
+
+handlePageLoad();
 
 chrome.runtime.onConnect.addListener(function (port) {
     console.assert(port.name === "tinderBot");
     port.onMessage.addListener(function (msg) {
         if (msg.action === "sendMessage") {
-            if (window.location.href.includes("messages")) {
-                sendMessage();
-            } else {
-                getMatches();
-            }
+            handlePageLoad();
         }
     });
 });
